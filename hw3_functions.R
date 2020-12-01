@@ -6,23 +6,21 @@ pplc = function(yinew, yi, k) {
 }
 
 #### CPO
-f_ig_inv <- function(y, x, b0, b1, phi){
+f_inv_invgaus <- function(y, x, b0, b1, phi){
   mu <- 1/(b0 + b1*x)
   sqrt(2*pi*phi)*y^3/2*exp((y - mu)^2/(2*phi*y*mu^2))
 }
 
-f_gam_inv <- function(y, x, b0, b1, nu){
+f_inv_gamma <- function(y, x, b0, b1, nu){
   mu <- 1/(b0 + b1*x)
   exp(lgamma(nu) + nu*log(mu/nu)+(1-nu)*log(y) + nu*y/mu)
 }
 
-cpo_ig <- sapply(1:length(xi), function(i){
+cpo_ivggaus <- sapply(1:length(xi), function(i){
   1/mean(f_ig_inv(yi[i], xi[i], b1.ig, b2.ig, phi.ig))
 })
 
-cvLS.ig <- mean(log(cpo_ig))
-
-cpo_gam <- sapply(1:length(xi), function(i){
+cpo_gamma <- sapply(1:length(xi), function(i){
   1/mean(f_gam_inv(yi[i], xi[i], b1.inv.gamma, b2.inv.gamma, nu.inv.gamma))
 })
 
@@ -98,10 +96,12 @@ gamma.llh.invlink = function(beta) {
   link = b1+b2*xi
   if (any((link)<0)) return(-Inf)
   
+  # Log transformation on alpha to transform it to the real line
+  
   gam.prior = 1/dgamma(exp(b3), prior.shape, prior.rate, log=TRUE)
   norm.prior = mvtnorm::dmvnorm(c(b1, b2), prior.mu, prior.Sigma, log=TRUE)
-  likelihood = sum(-lgamma(exp(b3)) + exp(b3)*b3 + exp(b3)*log(link) + 
-                     (exp(b3)-1)*log(yi)-yi*exp(b3)*(link))
+  likelihood = sum(exp(b3)*b3 + exp(b3)*log(link) + 
+                     (exp(b3)-1)*log(yi)-yi*exp(b3)*(link)-lgamma(exp(b3)))
   jacobian = b3
   density = gam.prior + norm.prior + likelihood + jacobian
   return(density)
@@ -116,6 +116,8 @@ loglike.ig = function(beta) {
   prior.Sigma = 100 * diag(2)
   prior.shape = 0.0001
   prior.rate = 0.0001
+  
+  # Log transform phi to the real line
   phi = exp(b3)
   link = b1 + b2 * xi
   if (any(link < 0))
